@@ -1,0 +1,51 @@
+
+conway.cc,199
+#define SCREEN_BPP 25,516
+SDL_Surface *surface;surface28,573
+void Quit(31,674
+void handleKeyPress(40,854
+void initSDL(60,1188
+int initGL(111,2670
+void draw_square(134,3151
+int main(146,3599
+
+display.hh,853
+#define CONWAY_DISPLAY_HH2,26
+struct double_pair 4,53
+  double X,double_pair::X5,74
+  double X, Y;double_pair::Y5,74
+  double_pair(double_pair::double_pair6,89
+struct dTriplet 12,167
+  double Z;dTriplet::Z13,206
+struct int_pair 16,222
+  int X,int_pair::X17,240
+  int X, Y;int_pair::Y17,240
+struct screen_data 21,257
+  int pixWidth,screen_data::pixWidth22,278
+  int pixWidth, pixHeight;screen_data::pixHeight22,278
+  double glWidth,screen_data::glWidth23,305
+  double glWidth, glHeight;screen_data::glHeight23,305
+  double aspectRatio;screen_data::aspectRatio24,333
+  double xToEdge,screen_data::xToEdge26,356
+  double xToEdge, yToEdge;screen_data::yToEdge26,356
+  void resize_window(screen_data::resize_window28,384
+  screen_data(screen_data::screen_data66,1288
+  double_pair pix_to_gl(screen_data::pix_to_gl70,1378
+
+game_logic.hh,506
+#define CONWAY_GAME_LOGIC_HH2,29
+struct game_grid 6,78
+  bool *Current,game_grid::Current7,97
+  bool *Current, *Buffer;game_grid::Buffer7,97
+  int Height,game_grid::Height9,124
+  int Height, Width;game_grid::Width9,124
+  game_grid(game_grid::game_grid11,146
+  ~game_grid(game_grid::~game_grid24,443
+  int height(game_grid::height29,508
+  int width(game_grid::width33,549
+  bool operator()(game_grid::operator()37,588
+  void buffer_set(game_grid::buffer_set41,664
+void iterate(47,756
+
+timer.hh,25
+#define MY_TIMER_HH2,20
