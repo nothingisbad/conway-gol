@@ -1,6 +1,6 @@
 CPP = g++ -Wall 
 
-conway: ./conway.cc ./game_logic.hh ./display.hh ./console_io.hh
+conway: ./*.cc ./*.hh ./display.hh ./console_io.hh
 	$(CPP) ./conway.cc -o conway -lGL -lGLU `sdl-config --cflags --libs` -lboost_thread
 
 console_io: ./test_console_io.cc ./console_io.hh

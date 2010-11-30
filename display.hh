@@ -3,7 +3,7 @@
 
 #include "./point_types.hh"
 
-struct Camera : public dTriplet {    
+struct Camera : public dTriplet {
   bool AbsoluteP;
   Camera() {
     AbsoluteP = false;
@@ -35,17 +35,15 @@ struct screen_data {
   double aspectRatio;
   static const double dFOV = 0.275; //field of view angle factor
 
-  double xToEdge, yToEdge;
+  double dHalfX, dHalfY;
+  int iHalfX, iHalfY;
 
   void resize_window(int width, int height) {
-    /* Height / width ration */
-    GLfloat ratio;
+    aspectRatio = (double)width / (double)height;
 
     /* Protect against a divide by zero */
     if ( height == 0 )
 	height = 1;
-
-    ratio = ( GLfloat )width / ( GLfloat )height;
 
     /* Setup our viewport. */
     glViewport( 0, 0, ( GLsizei )width, ( GLsizei )height );
@@ -55,7 +53,7 @@ struct screen_data {
     glLoadIdentity( );
 
     /* Set our perspective */
-    gluPerspective( 45.0f, ratio, 0.1f, 100.0f );
+    gluPerspective( 45.0f, aspectRatio, 0.1f, 100.0f );
 
     /* Make sure we're chaning the model view and not the projection */
     glMatrixMode( GL_MODELVIEW );
@@ -66,33 +64,46 @@ struct screen_data {
     pixWidth = width;
     pixHeight = height;
 
-    aspectRatio = (double)width / (double)height;
-
     glHeight = 3.0;
     glWidth = aspectRatio * glHeight;
 
-    xToEdge = glWidth / 2;
-    yToEdge = glHeight / 2;
+    dHalfX = glWidth / 2;
+    dHalfY = glHeight / 2;
+
+    iHalfX = static_cast<int>(pixWidth / 2);
+    iHalfY = static_cast<int>(pixHeight / 2);
   }
 
   screen_data(int width = 640, int height = 480) {
     resize_window(width, height);
   }
-
-//  dPair pix_to_gl(iPair pix, double depth) {
-//    return dPair( (((double)pix.X / (double)pixWidth) * glWidth) - xToEdge ,
-//			yToEdge - (((double)pix.Y / (double)pixHeight) * glHeight) 
-//			);
-//  }
 };
 
 dPair pix_to_gl(const screen_data &screen
 		, const iPair &pix
 		, const double &depth) {
-
   double scale_factor = screen.dFOV * depth;
-  return dPair( ((((double)pix.X / (double)screen.pixWidth) * screen.glWidth) - screen.xToEdge) * scale_factor ,
-		(screen.yToEdge - (((double)pix.Y / (double)screen.pixHeight) * screen.glHeight)) * scale_factor );
+  return dPair( (screen.dHalfX - (((double)pix.X / (double)screen.pixWidth) * screen.glWidth) ) * scale_factor ,
+		((((double)pix.Y / (double)screen.pixHeight) * screen.glHeight) - screen.dHalfY) * scale_factor );
+}
+
+iPair gl_to_pix(const screen_data &screen, const double &x, const double &y, const double &z) {
+  double scale_factor = -(screen.dFOV * z);
+  return iPair( (int)(x / (screen.dHalfX * scale_factor)) * screen.iHalfX + screen.iHalfX
+		, (int)(y / (screen.dHalfY * scale_factor)) * screen.iHalfY + screen.iHalfY
+		);
+}
+
+
+iPair gl_to_pix(const screen_data &screen
+		,const dPair& point
+		,const double &Z) {
+  return gl_to_pix(screen, point.X, point.Y, Z);
+}
+
+iPair gl_to_pix(const screen_data &screen
+		, const dTriplet &point) {
+  return gl_to_pix(screen, point.X, point.Y, point.Z);
 }
 
 

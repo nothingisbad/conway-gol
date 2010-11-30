@@ -50,13 +50,15 @@ public:
 
 
 struct parse_consol {
-  int State;
+  enum state_type {getting_x = 0, getting_y = 1, getting_z = 2 };
+  state_type State;
+  
   dTriplet Pos;
 
   Console &IO;
 
   parse_consol(Console &io) : IO(io) {
-    State = 0;
+    State = getting_x;
   }
 
   void operator()(Camera &camera) {
@@ -67,37 +69,42 @@ struct parse_consol {
       IO.in_pop();
 
       if(str == "print") {
-	std::cout<<Pos.X<<" "<<Pos.Y<<" "<<Pos.Z<<std::endl;
-	continue;
-      } if(str == "absolute") {
-	camera.AbsoluteP = true;
-	continue;
-      } else if(str == "relative") {
-	camera.AbsoluteP = false;
-	continue;
+	if(!IO.in_empty()) {
+	  str = IO.in_front();
+	  IO.in_pop();
+	  if(str == "camera") {
+	    std::cout<<"Camera at: "<<camera.X<<" "<<camera.Y<<" "<<camera.Z<<std::endl;
+	    goto reset_parse_state;
+	  } 
+	}
+	std::cout<<"Last input position: "<<Pos.X<<" "<<Pos.Y<<" "<<Pos.Z<<std::endl;
+	goto reset_parse_state;
       } 
+      if(str == "absolute") {
+	camera.AbsoluteP = true;
+	goto reset_parse_state;
+      }
+      if(str == "relative") {
+	camera.AbsoluteP = false;
+	goto reset_parse_state;
+      }
 
       switch(State) {
-      case 0:
+      case getting_x:
 	Pos.X = atof( str.c_str() );
-	std::cout<<"Have X: "<<Pos.X<<" "<<std::flush;
-	++State;
-      case 1:
+	State = getting_y;
+      case getting_y:
 	if(IO.in_empty()) return;
 	str = IO.in_front();
 	IO.in_pop();
 	Pos.Y = atof(str.c_str() );
-	std::cout<<"Have y: "<<Pos.Y<<" "<<std::flush;
-	++State;
-      case 2:
+	State = getting_z;
+      case getting_z:
 	if(IO.in_empty()) return;
 	str = IO.in_front();
 	IO.in_pop();
 	Pos.Z = atof(str.c_str() );
-	std::cout<<"Have z: "<<Pos.Z<<std::endl;
-	++State;
-      case 3:
-	State = 0;
+	State = getting_x;
 	break;
       }
 
@@ -106,6 +113,9 @@ struct parse_consol {
       } else {
 	camera += Pos;
       }
+      continue;
+    reset_parse_state:
+      State = getting_x;
     }
   }
 };

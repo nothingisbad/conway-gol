@@ -3,6 +3,7 @@
 #include "SDL.h"
 
 #include <iostream>
+#include <time.h>
 
 #include "./game_logic.hh"
 #include "./display.hh"
@@ -11,35 +12,29 @@
 /* screen width, height, and bit depth */
 #define SCREEN_BPP     16
 
-struct dumb_clock {
-  unsigned int Ticks;
-  dumb_clock() {
-    Ticks = 0;
-  }
-
-  void inc() {
-    ++Ticks;
-  }
+struct simple_colors {
+  static const dTriplet green, red, blue;
 };
 
-struct dumb_timer {
-  unsigned int Began, DeltaT, Ending;
-  dumb_clock &Clock;
+const dTriplet simple_colors::green = dTriplet(0.1, 0.9, 0.1);
+const dTriplet simple_colors::red = dTriplet(0.9, 0.1, 0.1);
+const dTriplet simple_colors::blue = dTriplet(0.1, 0.1, 0.9);
 
-  dumb_timer(dumb_clock &clock) : Clock(clock) {
-  }
+struct simple_timer {
+  long Began, DeltaT, Ending;
 
   void reset() {
-    Began = Clock.Ticks;
+    Began = clock();
     Ending = Began + DeltaT;
   }
 
-  void how_long(unsigned int tick) {
-    DeltaT = tick;
+  void how_long(double sec) {
+    DeltaT = static_cast<long>(sec * CLOCKS_PER_SEC);
   }
 
   bool done() {
-    return Clock.Ticks >= Ending;
+    long now = clock();
+    return (now > Ending) || (now < Began);
   }
 };
 
@@ -155,6 +150,69 @@ void draw_square() {
   glEnd( );                       /* Done Drawing The Quad    */
 }
 
+inline void draw_triangle(dTriplet color, dTriplet pos, dPair bBox) {
+  glLoadIdentity( );
+  glTranslatef(pos.X, pos.Y, pos.Z);
+  glColor3f( color.X, color.Y, color.Z );
+
+  glBegin( GL_TRIANGLES ); {
+    glVertex3f( -(bBox.X), (bBox.Y), 0 );
+    glVertex3f( -(bBox.X), -(bBox.Y) , 0);
+    glVertex3f( -(bBox.X), 0.0, 0);
+  }
+  glEnd();
+}  
+
+struct playback_contorol {
+  dTriplet Pos;
+  bool bPlaying;
+  dPair glBBox;
+
+  playback_contorol() : glBBox(0.01, 0.01) {
+    bPlaying = true;
+    Pos.Z = -0.1;
+  }
+
+  bool playP() {
+    return bPlaying;
+  }
+
+  void resize(const screen_data& screen) {
+    Pos = pix_to_gl(screen
+		    , iPair(20,20)
+		    , Pos.Z);
+  }
+
+  void clicked() {
+    bPlaying ^= true;
+  }
+
+  void draw() {
+    glLoadIdentity( );
+    glTranslatef(Pos.X, Pos.Y, Pos.Z);
+    if(bPlaying) {
+      glColor3f( 0.1, 0.9, 0.2 );
+    } else {
+      glColor3f( 0.8, 0.2, 0.1 );
+    }
+    glBegin( GL_TRIANGLES ); {
+      glVertex3f( -0.001, 0.001, 0 );
+      glVertex3f( -0.001, -0.001 , 0);
+      glVertex3f( 0.001, 0.0, 0);
+    }
+    glEnd();
+  }
+};
+
+bool point_on( dPair point
+	       , dTriplet thing_pos
+	       , dPair thing_bounds) {
+  return ( (point.X > (thing_pos.X - thing_bounds.X))
+	   && (point.X < (thing_pos.X + thing_bounds.X))
+	   && (point.Y > (thing_pos.Y - thing_bounds.Y))
+	   && (point.Y < (thing_pos.Y + thing_bounds.Y)) );
+}
+
 int main( int argc, char **argv ) {
     /* Flags to pass to SDL_SetVideoMode */
     int videoFlags;
@@ -167,12 +225,6 @@ int main( int argc, char **argv ) {
     /* whether or not the window is active */
     bool isActive = true;
 
-    dumb_clock Clock;
-
-    game_grid grid;
-    dumb_timer iterateGrid(Clock);
-    iterateGrid.how_long(1000);
-
     screen_data screen;
 
     //mouse:
@@ -181,27 +233,36 @@ int main( int argc, char **argv ) {
     bool bMouseButtonDown = false;
     bool bDragging = false;
 
-    dumb_timer dragTimer(Clock);
-    dragTimer.how_long(150);
+    simple_timer dragTimer;
+    dragTimer.how_long( 0.25 );
 
     //selection
     iPair clicked;
+    dTriplet click_projection;
 
     dTriplet grid_center;
 
     Camera camera;
     dTriplet cameraDragStart;
 
-    bool paused = false;
-
-
     Console io;
-    dumb_timer checkConsole(Clock);
-    checkConsole.how_long(200);
+    simple_timer checkConsole;
+    checkConsole.how_long(0.1);
 
     parse_consol console(io);
     //start the console interface
     boost::thread thrd( boost::ref(io) );
+
+    playback_contorol play;
+    play.bPlaying = false;
+
+    //game grid and logic
+    game_grid grid;
+
+    simple_timer iterateGrid;
+    iterateGrid.how_long( 0.25 );
+
+    static const dPair cell_bbox(0.9, 0.9);
 
     initSDL( videoInfo, screen, videoFlags );
 
@@ -210,6 +271,7 @@ int main( int argc, char **argv ) {
 
     /* resize the initial window */
     screen.resize_window(screen.pixWidth, screen.pixHeight );
+    play.resize(screen);
 
     //setup the camera
     grid_center.X = (double)grid.Width - 1.0;
@@ -218,7 +280,7 @@ int main( int argc, char **argv ) {
 
     camera.X = grid_center.X;
     camera.Y = grid_center.Y;
-    camera.Z = -30;
+    camera.Z = -45;
 
     /* wait for events */ 
     while ( !done ) {
@@ -230,8 +292,8 @@ int main( int argc, char **argv ) {
 	    mouseOffset = pix_to_gl(screen,
 				    iMouse,
 				    camera.Z);
-	    camera.X = cameraDragStart.X + mouseOffset.X - dMouse.X;
-	    camera.Y = cameraDragStart.Y + mouseOffset.Y - dMouse.Y;
+	    camera.X = cameraDragStart.X + dMouse.X - mouseOffset.X;
+	    camera.Y = cameraDragStart.Y + dMouse.Y - mouseOffset.Y;
 	  } else bDragging = dragTimer.done();
 	}
 	switch( event.type ) {
@@ -255,6 +317,7 @@ int main( int argc, char **argv ) {
 	    Quit( 1 );
 	  }
 	  screen.resize_window(event.resize.w, event.resize.h );
+	  play.resize(screen);
 	  break;
 	case SDL_MOUSEBUTTONDOWN:
 	  SDL_GetMouseState(&iMouse.X, &iMouse.Y);
@@ -268,7 +331,19 @@ int main( int argc, char **argv ) {
 	case SDL_MOUSEBUTTONUP:
 	  //todo: check timer, if the button's been held too long and mouse hasn't moved, do nothing
 	  if(!bDragging) {
-	    std::cout<<"mouse postion: x"<<dMouse.X<<" y"<<dMouse.Y<<std::endl;
+	    dMouse = pix_to_gl(screen
+			       , iMouse
+			       , play.Pos.Z);
+	    if( point_on(dMouse, play.Pos, play.glBBox) ) {
+	      play.clicked();
+	    } else {
+	      dMouse = pix_to_gl(screen
+				 , iMouse
+				 , camera.Z);
+	      click_projection = camera + dMouse;
+	      grid.click( static_cast<int>((click_projection.X + 1) / 2)
+			  , static_cast<int>((click_projection.Y + 1) / 2) );
+	    }
 	  }
 	  bMouseButtonDown = false;
 	  bDragging = false;
@@ -291,22 +366,12 @@ int main( int argc, char **argv ) {
 	/* Clear The Screen And The Depth Buffer */
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-	glLoadIdentity( );
-	glTranslatef(grid_center.X - camera.X, grid_center.Y - camera.Y, camera.Z + 0.1);
-	glColor3f( 0.1, 0.9, 0.2 );
-	glBegin( GL_TRIANGLES ); {
-	  glVertex3f( -0.3, -0.3, 0 );
-	  glVertex3f( 0, 0.3 , 0);
-	  glVertex3f( 0.3, -0.3, 0);
-	}
-	glEnd();
-
 	for(int i = 0; i < grid.Height; ++i) {
 	  for(int j = 0; j < grid.Width; ++j) {
 	    glLoadIdentity( );
 	    glTranslatef( ((double)2 * i) - camera.X, ((double)2 * j) - camera.Y, camera.Z );
 	    if( clicked.X == i && clicked.Y == j ) {
-	      glColor3f(0.5, 0.9, 0.5);
+	      glColor3f(0.5, 0.5, 0.5);
 	    } else if( grid(i, j) ) {
 	      glColor3f(0.1, 0.1, 0.1);
 	    } else {
@@ -316,18 +381,21 @@ int main( int argc, char **argv ) {
 	  }
 	}
       
+	play.draw();
+
 	/* Draw it to the screen */
 	SDL_GL_SwapBuffers( );
       }
 
-      if( iterateGrid.done() ) {
+      if(play.playP()
+	 && iterateGrid.done() ) {
 	iterate(grid);
-	iterateGrid.reset();
+      	iterateGrid.reset();
       }
       if( checkConsole.done() ) {
 	console(camera);
+	checkConsole.reset();
       }
-      Clock.inc();
     }
 
     /* clean ourselves up and exit */

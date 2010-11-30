@@ -5,9 +5,8 @@
 
 
 struct game_grid {
-  bool *Current, *Buffer;
-
   int Height, Width;
+  bool *Current, *Buffer;
 
   game_grid() {
     Height = 30;
@@ -43,6 +42,9 @@ struct game_grid {
     Buffer[(Width * x) + y] = value;
   }
 
+  void click(int x, int y) {
+    Current[(Width * x) + y] ^= true;
+  }
 };
 
 inline void iterate(game_grid &grid) {
@@ -52,7 +54,9 @@ inline void iterate(game_grid &grid) {
   for(int i = 1; i < grid.Height - 1; ++i) {
     for(int j = 1; j < grid.Width - 1; ++j) {
       sum = grid(i, j + 1) + grid(i, j - 1) + grid(i + 1, j) + grid(i - 1,j) + grid(i + 1,j + 1) + grid(i + 1,j - 1) + grid(i - 1,j + 1) + grid(i - 1,j - 1);
-      if( (sum == 3) || ((sum == 2) && grid(i,j)) ) {
+      if( (sum == 3)
+	  || (grid(i, j) 
+	      && (sum == 2)) ) {
 	grid.buffer_set(i, j, true);
       } else {
 	grid.buffer_set(i,j, false);
