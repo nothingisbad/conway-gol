@@ -2,10 +2,11 @@ Conway's game of life implemented in rudamentery openGL.
 OpenGL setup code is largely from NeHe's opengl examples at http://nehe.gamedev.net/
 
 Building:
-    The game uses SDL and c++11 threading libraries, the makefile expects a g++ version newer than 4.7 and 
+    The game uses SDL and c++11 threading libraries, the makefile expects a g++ version newer than 4.7 and the sdl
+    libraries (tested with sdl version 1.2.15).
 
 Usage:
-    Click on a cell to set it 'live'.  Click and drag to move around the game board.
+    Click on a cell to set it 'live'.  Click and drag to move the game board.
     The small play button in the top left corner starts and stops the game of life.
 
     conway listens to the cosole for commands, although only a few are supported.
