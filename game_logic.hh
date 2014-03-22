@@ -9,8 +9,8 @@ struct game_grid {
   bool *Current, *Buffer;
 
   game_grid() {
-    Height = 30;
-    Width = 30;
+    Height = 100;
+    Width = 100;
     Current = new bool[Height * Width];
     Buffer = new bool[Height * Width];
     for(int i = 0; i < Height - 1; ++i) {

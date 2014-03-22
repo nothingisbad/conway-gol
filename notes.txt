@@ -1,3 +1,0 @@
-screen height is (a little less than) 3 units at depth of 6 units
-
-width is 

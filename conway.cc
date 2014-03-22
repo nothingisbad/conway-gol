@@ -12,29 +12,28 @@
 /* screen width, height, and bit depth */
 #define SCREEN_BPP     16
 
-struct simple_colors {
-  static const dTriplet green, red, blue;
-};
+using namespace std;
+using namespace std::chrono;
+
+struct simple_colors { static const dTriplet green, red, blue; };
 
 const dTriplet simple_colors::green = dTriplet(0.1, 0.9, 0.1);
 const dTriplet simple_colors::red = dTriplet(0.9, 0.1, 0.1);
 const dTriplet simple_colors::blue = dTriplet(0.1, 0.1, 0.9);
 
-struct simple_timer {
-  long Began, DeltaT, Ending;
+class SimpleTimer {
+  time_point<steady_clock> m_ending;
+  milliseconds m_how_long;
+public:
+  template<class DurationType>
+  SimpleTimer(DurationType d) : m_how_long(d) {};
 
   void reset() {
-    Began = clock();
-    Ending = Began + DeltaT;
-  }
-
-  void how_long(double sec) {
-    DeltaT = static_cast<long>(sec * CLOCKS_PER_SEC);
+    m_ending = chrono::steady_clock::now() + m_how_long;
   }
 
   bool done() {
-    long now = clock();
-    return (now > Ending) || (now < Began);
+    return chrono::steady_clock::now() > m_ending;
   }
 };
 
@@ -62,7 +61,7 @@ void handleKeyPress( SDL_keysym *keysym ) {
 	    /* F1 key was pressed
 	     * this toggles fullscreen mode
 	     */
-	    SDL_WM_ToggleFullScreen( surface );
+
 	    break;
 	default:
 	    break;
@@ -233,8 +232,7 @@ int main( int argc, char **argv ) {
     bool bMouseButtonDown = false;
     bool bDragging = false;
 
-    simple_timer dragTimer;
-    dragTimer.how_long( 0.25 );
+    SimpleTimer drag_timer( milliseconds(250) );
 
     //selection
     iPair clicked;
@@ -246,12 +244,11 @@ int main( int argc, char **argv ) {
     dTriplet cameraDragStart;
 
     Console io;
-    simple_timer checkConsole;
-    checkConsole.how_long(0.1);
+    SimpleTimer checkConsole( milliseconds(100) );
 
-    parse_consol console(io);
+    ParseConsole console(io);
     //start the console interface
-    boost::thread thrd( boost::ref(io) );
+    thread thrd( ref(io) );
 
     playback_contorol play;
     play.bPlaying = false;
@@ -259,8 +256,7 @@ int main( int argc, char **argv ) {
     //game grid and logic
     game_grid grid;
 
-    simple_timer iterateGrid;
-    iterateGrid.how_long( 0.25 );
+    SimpleTimer iterateGrid( milliseconds(100) );
 
     static const dPair cell_bbox(0.9, 0.9);
 
@@ -294,7 +290,7 @@ int main( int argc, char **argv ) {
 				    camera.Z);
 	    camera.X = cameraDragStart.X + dMouse.X - mouseOffset.X;
 	    camera.Y = cameraDragStart.Y + dMouse.Y - mouseOffset.Y;
-	  } else bDragging = dragTimer.done();
+	  } else bDragging = drag_timer.done();
 	}
 	switch( event.type ) {
 	case SDL_ACTIVEEVENT:
@@ -326,7 +322,7 @@ int main( int argc, char **argv ) {
 			     camera.Z);
 	  bMouseButtonDown = true;
 	  cameraDragStart = camera;
-	  dragTimer.reset();
+	  drag_timer.reset();
 	  break;
 	case SDL_MOUSEBUTTONUP:
 	  //todo: check timer, if the button's been held too long and mouse hasn't moved, do nothing

@@ -33,7 +33,7 @@ struct screen_data {
   int pixWidth, pixHeight;
   double glWidth, glHeight;
   double aspectRatio;
-  static const double dFOV = 0.275; //field of view angle factor
+  constexpr static double dFOV = 0.275; //field of view angle factor
 
   double dHalfX, dHalfY;
   int iHalfX, iHalfY;
